@@ -1,5 +1,5 @@
 import json
-from flask import Flask,render_template,request,redirect,flash,url_for
+from flask import Flask,render_template,request,redirect,flash,url_for, abort
 
 
 def loadClubs():
@@ -24,10 +24,13 @@ clubs = loadClubs()
 def index():
     return render_template('index.html')
 
-@app.route('/showSummary',methods=['POST'])
+@app.route('/showSummary', methods=['POST'])
 def showSummary():
-    club = [club for club in clubs if club['email'] == request.form['email']][0]
-    return render_template('welcome.html',club=club,competitions=competitions)
+    try:
+        club = [club for club in clubs if club['email'] == request.form['email']][0]
+        return render_template('welcome.html', club=club, competitions=competitions)
+    except IndexError:
+        abort(401, description="Email not found, please ensure your email is valid.")
 
 
 @app.route('/book/<competition>/<club>')
@@ -41,15 +44,28 @@ def book(competition,club):
         return render_template('welcome.html', club=club, competitions=competitions)
 
 
-@app.route('/purchasePlaces',methods=['POST'])
+@app.route('/purchasePlaces', methods=['POST'])
 def purchasePlaces():
     competition = [c for c in competitions if c['name'] == request.form['competition']][0]
     club = [c for c in clubs if c['name'] == request.form['club']][0]
     placesRequired = int(request.form['places'])
-    competition['numberOfPlaces'] = int(competition['numberOfPlaces'])-placesRequired
-    flash('Great-booking complete!')
-    return render_template('welcome.html', club=club, competitions=competitions)
 
+    # Limite de 12 places par réservation
+    if placesRequired > 12:
+        abort(401, description="You cannot book more than 12 places at a time.")
+
+    # Vérification des points disponibles et des places restantes pour la compétition
+    if placesRequired > int(club['points']):
+        abort(401, description="Not enough points. Please verify your available points.")
+    if placesRequired > int(competition['numberOfPlaces']):
+        abort(401, description="Not enough places available in the competition.")
+
+    # Mise à jour des places et des points
+    competition['numberOfPlaces'] = int(competition['numberOfPlaces']) - placesRequired
+    club['points'] = int(club['points']) - placesRequired
+    
+    flash(f'Booking complete, {placesRequired} places bought')
+    return render_template('welcome.html', club=club, competitions=competitions)
 
 # TODO: Add route for points display
 
