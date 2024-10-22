@@ -50,6 +50,10 @@ def purchasePlaces():
     club = [c for c in clubs if c['name'] == request.form['club']][0]
     placesRequired = int(request.form['places'])
 
+    # Empêcher la réservation de places négatives ou zéro
+    if placesRequired <= 0:
+        abort(400, description="Invalid number of places. Please enter a positive number.")
+
     # Limite de 12 places par réservation
     if placesRequired > 12:
         abort(401, description="You cannot book more than 12 places at a time.")
