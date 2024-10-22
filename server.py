@@ -1,3 +1,4 @@
+import datetime
 import json
 from flask import Flask,render_template,request,redirect,flash,url_for, abort
 
@@ -34,15 +35,18 @@ def showSummary():
 
 
 @app.route('/book/<competition>/<club>')
-def book(competition,club):
+def book(competition, club):
     foundClub = [c for c in clubs if c['name'] == club][0]
     foundCompetition = [c for c in competitions if c['name'] == competition][0]
-    if foundClub and foundCompetition:
-        return render_template('booking.html',club=foundClub,competition=foundCompetition)
-    else:
-        flash("Something went wrong-please try again")
-        return render_template('welcome.html', club=club, competitions=competitions)
 
+    # Vérification si la compétition est passée
+    competition_date = datetime.datetime.strptime(foundCompetition['date'], "%Y-%m-%d %H:%M:%S")
+    if competition_date < datetime.datetime.now():
+        flash("You cannot book places for a competition that has already happened.")
+        return render_template('welcome.html', club=foundClub, competitions=competitions)
+
+    # Si la compétition est valide, on peut afficher la page de réservation
+    return render_template('booking.html', club=foundClub, competition=foundCompetition)
 
 @app.route('/purchasePlaces', methods=['POST'])
 def purchasePlaces():
