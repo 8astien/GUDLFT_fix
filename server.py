@@ -77,13 +77,12 @@ def purchasePlaces():
     competition['numberOfPlaces'] = int(competition['numberOfPlaces']) - placesRequired
     club['points'] = int(club['points']) - placesRequired
     
-    # Sauvegarde les places dispo des compétitions
+    # Sauvegarde les compétitions et les clubs dans les fichiers JSON
     saveCompetitions(competitions)
-    # Sauvegarde les points dispo des clubs
     saveClubs(clubs)
 
     flash(f'Booking complete, {placesRequired} places bought')
-    return render_template('welcome.html', club=club, competitions=competitions)
+    return render_template('welcome.html', club=club, competitions=competitions, clubs=clubs)
 
 
 
