@@ -28,9 +28,9 @@ def index():
 def showSummary():
     try:
         club = [club for club in clubs if club['email'] == request.form['email']][0]
-        return render_template('welcome.html', club=club, competitions=competitions)
+        return render_template('welcome.html', club=club, competitions=competitions, clubs=clubs)
     except IndexError:
-        abort(401, description="Email not found, please ensure your email is valid.")
+        abort(401, description="Please use your given secretary email to login")
 
 
 @app.route('/book/<competition>/<club>')
