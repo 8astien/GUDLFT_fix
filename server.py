@@ -1,25 +1,19 @@
 import datetime
 import json
-from flask import Flask,render_template,request,redirect,flash,url_for, abort
-
+from flask import Flask, render_template, request, redirect, flash, url_for, abort
 
 def loadClubs():
     with open('clubs.json') as c:
-         listOfClubs = json.load(c)['clubs']
-         return listOfClubs
-
+        listOfClubs = json.load(c)['clubs']
+        return listOfClubs
 
 def loadCompetitions():
     with open('competitions.json') as comps:
-         listOfCompetitions = json.load(comps)['competitions']
-         return listOfCompetitions
-
+        listOfCompetitions = json.load(comps)['competitions']
+        return listOfCompetitions
 
 app = Flask(__name__)
 app.secret_key = 'something_special'
-
-competitions = loadCompetitions()
-clubs = loadClubs()
 
 @app.route('/')
 def index():
@@ -27,64 +21,65 @@ def index():
 
 @app.route('/showSummary', methods=['POST'])
 def showSummary():
+    clubs = loadClubs()
+    competitions = loadCompetitions()
     try:
         club = [club for club in clubs if club['email'] == request.form['email']][0]
         return render_template('welcome.html', club=club, competitions=competitions, clubs=clubs)
     except IndexError:
-        abort(401, description="Please use your given secretary email to login")
-
+        flash("Sorry, that email wasn't found.")
+        return render_template('index.html')
 
 @app.route('/book/<competition>/<club>')
 def book(competition, club):
-    foundClub = [c for c in clubs if c['name'] == club][0]
-    foundCompetition = [c for c in competitions if c['name'] == competition][0]
+    clubs = loadClubs()
+    competitions = loadCompetitions()
+    try:
+        foundClub = [c for c in clubs if c['name'] == club][0]
+        foundCompetition = [c for c in competitions if c['name'] == competition][0]
+    except IndexError:
+        flash("Something went wrong-please try again")
+        return render_template('welcome.html', club=foundClub, competitions=competitions, clubs=clubs)
 
-    # Vérification si la compétition est passée
     competition_date = datetime.datetime.strptime(foundCompetition['date'], "%Y-%m-%d %H:%M:%S")
     if competition_date < datetime.datetime.now():
         flash("You cannot book places for a competition that has already happened.")
-        return render_template('welcome.html', club=foundClub, competitions=competitions)
+        return render_template('welcome.html', club=foundClub, competitions=competitions, clubs=clubs)
 
-    # Si la compétition est valide, on peut afficher la page de réservation
     return render_template('booking.html', club=foundClub, competition=foundCompetition)
-
-def saveCompetitions(competitions):
-    with open('competitions.json', 'w') as comps_file:
-        json.dump({'competitions': competitions}, comps_file, indent=4)
-
-def saveClubs(clubs):
-    with open('clubs.json', 'w') as c:
-        json.dump({'clubs': clubs}, c, indent=4)
-
 
 @app.route('/purchasePlaces', methods=['POST'])
 def purchasePlaces():
-    competition = [c for c in competitions if c['name'] == request.form['competition']][0]
-    club = [c for c in clubs if c['name'] == request.form['club']][0]
+    clubs = loadClubs()
+    competitions = loadCompetitions()
+    try:
+        competition = [c for c in competitions if c['name'] == request.form['competition']][0]
+        club = [c for c in clubs if c['name'] == request.form['club']][0]
+    except IndexError:
+        flash("Something went wrong-please try again")
+        return render_template('welcome.html', club=club, competitions=competitions, clubs=clubs)
     placesRequired = int(request.form['places'])
 
     # Vérification des places et des points
     if placesRequired <= 0:
-        abort(400, description="Invalid number of places. Please enter a positive number.")
+        flash("Invalid number of places.")
+        return render_template('welcome.html', club=club, competitions=competitions, clubs=clubs)
     if placesRequired > 12:
-        abort(401, description="You cannot book more than 12 places at a time.")
-    if placesRequired > int(club['points']):
-        abort(401, description="Not enough points. Please verify your available points.")
+        flash("You cannot book more than 12 places in one competition.")
+        return render_template('welcome.html', club=club, competitions=competitions, clubs=clubs)
     if placesRequired > int(competition['numberOfPlaces']):
-        abort(401, description="Not enough places available in the competition.")
+        flash("Not enough places available.")
+        return render_template('welcome.html', club=club, competitions=competitions, clubs=clubs)
+    if placesRequired > int(club['points']):
+        flash("Not enough points.")
+        return render_template('welcome.html', club=club, competitions=competitions, clubs=clubs)
 
-    # Mise à jour des places et des points
+    # Mise à jour des places et des points (en mémoire uniquement)
     competition['numberOfPlaces'] = int(competition['numberOfPlaces']) - placesRequired
     club['points'] = int(club['points']) - placesRequired
-    
-    # Sauvegarde les compétitions et les clubs dans les fichiers JSON
-    saveCompetitions(competitions)
-    saveClubs(clubs)
 
-    flash(f'Booking complete, {placesRequired} places bought')
+    flash(f'Great-booking complete! {placesRequired} places purchased')
     return render_template('welcome.html', club=club, competitions=competitions, clubs=clubs)
-
-
 
 @app.route('/logout')
 def logout():
